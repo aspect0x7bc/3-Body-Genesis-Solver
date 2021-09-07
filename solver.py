@@ -1,14 +1,16 @@
 import numpy as np
 import scipy as sci
 from scipy.integrate import solve_ivp
-import matplotlib.pyplot as plt
 
 '''
-#
-#
-#
-#
-#
+# @title - 'solves' three body problem for provided inital conditions (param hash)
+# @author - @0xaspect
+# @dev - calculates the position vectors of three equal mass bodies as they move in space from time 0 to 5 as defined by Newton's law of gravitation (no real units)
+# @param hash - a string of 64 hex digits designed to come from a hashing function (keccak-256). gets equations initial values through 'bound' function
+# @return - [r1, r2, r3, t, score]
+#           r1,r2,r3: position vectors of the three bodies. r1[i] gives [x,y,z] of at time i
+#           t: time steps between 0 and 5 generally t[i] - t[i+1] = 0.005 (max_step) but not always so length is variable
+#           score: score the 'stableness' of a given solution by summing the average magnitude of the positon vectors for each time step (lower score -> more stable)
 '''
 
 def solve(hash):
@@ -16,10 +18,8 @@ def solve(hash):
     (m1, m2, m3) = (1, 1, 1)
     t_span = (0, 5)
 
-    '''
-    Bound value between two points with a resolution of 16^-3 (since we are using 3 hex chars)
-    000 gives this_min while fff gives this_max. 800 gives the midway point
-    '''
+    # Bound value between two points with a resolution of 16^-3 (since we are using 3 hex chars)
+    # 000 gives this_min while fff gives this_max. 800 gives the midway point
     def bound(value, this_min, this_max):
         this_range = this_max - this_min
         big_step = this_range / 16.0
@@ -43,6 +43,7 @@ def solve(hash):
         else:
             ivs.append(bound(hash[x*3:x*3+3], -0.05, 0.05))
 
+    # diff eq solution to Newton's law of gravitation
     def derivs(t, w):
         r1=w[:3]
         r2=w[3:6]
@@ -51,7 +52,7 @@ def solve(hash):
         v2=w[12:15]
         v3=w[15:18]
         
-        # normal vectorsS
+        # normal vectors
         r12=sci.linalg.norm(r2-r1)
         r13=sci.linalg.norm(r3-r1)
         r23=sci.linalg.norm(r3-r2)
@@ -73,9 +74,11 @@ def solve(hash):
     state = np.array(ivs)
     state = state.flatten()
 
+    # solution - see scipy.integrate.solve_ivp
     sol = solve_ivp(derivs, t_span, state, max_step=0.005)
 
-    # TODO Stuff...
+    # intigration error. raise up to api to handle
+    # Im not sure what can be done to remedy this, if you know please lmk or make a pull request
     if not sol.success:
         raise ValueError(sol.message)
 
@@ -83,28 +86,24 @@ def solve(hash):
     r2=np.array([[x,y,z] for x,y,z in zip(sol.y[3], sol.y[4], sol.y[5])])
     r3=np.array([[x,y,z] for x,y,z in zip(sol.y[6], sol.y[7], sol.y[8])])
 
+    # return r vecs relative to Center Of Mass
     rcom=(m1*r1+m2*r2+m3*r3)/(m1+m2+m3)
     r1com=r1-rcom
     r2com=r2-rcom
     r3com=r3-rcom
     t=list(sol.t)
 
-    save_svg = False
-    if(save_svg):
-        fig = plt.figure(figsize=(10, 10))
-        ax = fig.add_subplot(autoscale_on=True)
-        ax.set_aspect('equal')
+    # calculate score - lower is better, more 'stable'
+    # sum of the average magnitude of position vectors for each time step
+    score = 0
+    for i in range(len(t)):
+        avg_magnitude = 0
+        avg_magnitude += sci.linalg.norm(r1com[i])
+        avg_magnitude += sci.linalg.norm(r2com[i])
+        avg_magnitude += sci.linalg.norm(r3com[i])
+        score += avg_magnitude / 3
 
-        fig.patch.set_facecolor('black')
-        plt.axis('off')
+    # finally get average of time step
+    score = score / len(t)
 
-        #Plot the orbits
-        ax.plot(r1com[:,0],r1com[:,1],color="white")
-        ax.plot(r2com[:,0],r2com[:,1],color="white")
-        ax.plot(r3com[:,0],r3com[:,1],color="white")
-        plt.axis('off')
-        plt.savefig("test.svg")
-        plt.show()
-
-
-    return (r1com.tolist(), r2com.tolist(), r3com.tolist(), t)
+    return (r1com.tolist(), r2com.tolist(), r3com.tolist(), t, score)

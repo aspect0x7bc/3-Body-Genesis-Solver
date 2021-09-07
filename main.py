@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, validator
 import re
-from typing import List
 
 from solver import solve
 
@@ -35,6 +34,6 @@ async def do_solve(req: SolveRequest):
   try:
     sol = solve(req.hash)
   except ValueError as err:
-    raise HTTPException(status_code=420, detail=f'Error solving cus i suck with math. From scipy.integrate.solve_ivp: {err}')
+    raise HTTPException(status_code=420, detail=f'Error solving cus i suck with math probably. From scipy.integrate.solve_ivp: {err}')
 
   return sol
