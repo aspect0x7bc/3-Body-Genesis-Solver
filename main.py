@@ -29,7 +29,7 @@ app.add_middleware(
   allow_headers=["*"],
 )
 
-@app.post("/api/solve")
+@app.post("/solve")
 async def do_solve(req: SolveRequest):
   try:
     sol = solve(req.hash)
